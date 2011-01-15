@@ -1,4 +1,5 @@
 import urllib
+import logging
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import send_mail
@@ -16,6 +17,7 @@ from django.contrib.auth.hashers import (
 from django.contrib.auth.signals import user_logged_in
 from django.contrib.contenttypes.models import ContentType
 
+logs = logging.getLogger('django_auth')
 
 def update_last_login(sender, user, **kwargs):
     """
@@ -156,6 +158,7 @@ class UserManager(models.Manager):
 
         user.set_password(password)
         user.save(using=self._db)
+        logs.info('action=create,user='+username)
         return user
 
     def create_superuser(self, username, email, password):
@@ -164,6 +167,7 @@ class UserManager(models.Manager):
         u.is_active = True
         u.is_superuser = True
         u.save(using=self._db)
+        logs.info('action=create,privileges=root,user='+username)
         return u
 
     def make_random_password(self, length=10,
@@ -290,6 +294,7 @@ class User(models.Model):
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
+        logs.info('action=set_password,user=' + self.username)
 
     def check_password(self, raw_password):
         """
@@ -299,7 +304,13 @@ class User(models.Model):
         def setter(raw_password):
             self.set_password(raw_password)
             self.save()
-        return check_password(raw_password, self.password, setter)
+        valid = check_password(raw_password, self.password, setter)
+
+        status = valid and 'success' or 'failure'
+        logs.info('action=authentication,status=%s,user=%s' %
+                  (status, self.username))
+
+        return valid
 
     def set_unusable_password(self):
         # Sets a value that will never be a valid hash
@@ -369,6 +380,7 @@ class User(models.Model):
         """
         Sends an email to this User.
         """
+        logs.info('action=send_email,user=' + self.username)
         send_mail(subject, message, from_email, [self.email])
 
     def get_profile(self):
