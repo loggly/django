@@ -156,11 +156,14 @@ class HttpRequest(object):
         if settings.USE_X_FORWARDED_HOST and (
             'HTTP_X_FORWARDED_HOST' in self.META):
             host = self.META['HTTP_X_FORWARDED_HOST']
+            host = host.split(',')[-1].strip()
         elif 'HTTP_HOST' in self.META:
             host = self.META['HTTP_HOST']
+            host = host.split(',')[-1].strip()
         else:
             # Reconstruct the host using the algorithm from PEP 333.
             host = self.META['SERVER_NAME']
+            host = host.split(',')[-1].strip()
             server_port = str(self.META['SERVER_PORT'])
             if server_port != (self.is_secure() and '443' or '80'):
                 host = '%s:%s' % (host, server_port)
